@@ -7,16 +7,17 @@ NUM_ALL=0
 
 do_test()
 {
-for file in `find "test/$1" | sort | grep '.gr$' | sed -e 's/\.gr$//g'`;
+for grfile in test/$1/*.gr;
 do
+  file="${grfile%%.gr}"
   NUM_ALL=$[$NUM_ALL + 1]
   if [ -f "$file.td" ]
   then
-    $VALIDATE "$file.gr" "$file.td" &> /dev/null;
+    $VALIDATE "$grfile" "$file.td" &> /dev/null;
     STATE=$?
     INFO="(gr + td)"
   else
-    $VALIDATE "$file.gr" &> /dev/null;
+    $VALIDATE "$grfile" &> /dev/null;
     STATE=$?
     INFO="(gr)"
   fi
@@ -31,7 +32,9 @@ do
   fi
 done
 }
+
 do_test valid 0
+echo
 do_test invalid 1
 
 tput sgr0;
