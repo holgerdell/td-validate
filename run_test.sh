@@ -42,3 +42,5 @@ tput sgr0;
 echo
 echo "$NUM_PASSED of $NUM_ALL tests passed."
 echo
+
+test $NUM_PASSED = $NUM_ALL
