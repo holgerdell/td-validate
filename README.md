@@ -23,6 +23,7 @@ Run `make` and, optionally, `make test`.
 - Cornelius Brand
 - Holger Dell
 - Lukas Larisch
+- Felix Salfelder
 
 ## License
 
