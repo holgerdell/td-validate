@@ -441,10 +441,6 @@ void read_problem(const std::vector<std::string>& tokens, graph& g) {
   n_vertices = pure_stou(tokens[2]);
   n_edges = pure_stou(tokens[3]);
 
-  if (n_vertices < 0 || n_edges < 0) {
-    throw std::invalid_argument(INV_PROB);
-  }
-
   while (g.add_vertex()+1 < n_vertices) {};
 }
 
