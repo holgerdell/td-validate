@@ -10,3 +10,12 @@ test: td-validate
 .PHONY: clean
 clean:
 	rm -f td-validate
+	rm -f td-validate.cpp.gcov td-validate.gcno td-validate.gcda
+
+# Use this to determine code coverage for automated tests
+.PHONY: coverage
+coverage: CXXFLAGS += -O0 -fprofile-arcs -ftest-coverage
+coverage: td-validate.cpp.gcov
+
+td-validate.cpp.gcov: test
+	gcov -r td-validate.cpp
