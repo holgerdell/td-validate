@@ -577,7 +577,7 @@ void read_tree_decomposition(std::ifstream& fin, tree_decomposition& T)
  * Given a graph and a decomposition, this checks whether or not the set of
  * vertices in the graph equals the union of all bags in the decomposition.
  */
-bool check_vertex_coverage(tree_decomposition& T, graph& g)
+bool check_vertex_coverage(tree_decomposition& T)
 {
   if (!(n_graph == n_vertices)) {
     std::cerr << "Error: .gr and .td disagree on how many vertices the graph has" << std::endl;
@@ -593,7 +593,7 @@ bool check_vertex_coverage(tree_decomposition& T, graph& g)
 
   for (unsigned i = 0; i < occurrence_nums.size(); i++) {
     if (occurrence_nums[i] == 0) {
-      std::cerr << "Error: vertex " << i << " appears in no bag" << std::endl;
+      std::cerr << "Error: vertex " << (i+1) << " appears in no bag" << std::endl;
       return false;
     }
   }
@@ -631,6 +631,18 @@ bool check_edge_coverage(tree_decomposition& T, graph& g)
     }
   }
 
+  if (g.num_edges > 0)
+  {
+    for (unsigned u = 0; u < g.num_vertices; u++)
+    {
+      if (! g.adj_list.at(u).empty() )
+      {
+        unsigned v=g.adj_list.at(u).front();
+        std::cerr << "Error: edge {"<< (u+1) << ", " << (v+1) << "} appears in no bag" << std::endl;
+        break;
+      }
+    }
+  }
   return (g.num_edges == 0);
 }
 
@@ -716,10 +728,9 @@ bool is_valid_decomposition(tree_decomposition& T, graph& g)
   if (!T.is_tree()) {
     std::cerr << "Error: not a tree" << std::endl;
     return false;
-  } else if (!check_vertex_coverage(T,g)) {
+  } else if (!check_vertex_coverage(T)) {
     return false;
   } else if (!check_edge_coverage(T,g)) {
-    std::cerr << "Error: some edge appears in no bag" << std::endl;
     return false;
   } else if (!check_connectedness(T)) {
     std::cerr << "Error: some vertex induces disconnected components in the tree" << std::endl;
