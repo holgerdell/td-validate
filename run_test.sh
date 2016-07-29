@@ -36,6 +36,8 @@ done
 do_test valid 0
 echo
 do_test invalid 1
+echo
+do_test empty 2
 
 tput sgr0;
 

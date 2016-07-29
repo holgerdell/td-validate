@@ -743,6 +743,7 @@ bool is_valid_decomposition(tree_decomposition& T, graph& g)
 
 int main(int argc, char** argv) {
   bool is_valid = true;
+  bool empty_td_file = false;
   if (argc < 2 || argc > 3) {
     std::cerr << "Usage: " << argv[0] << " input.gr [input.td]" << std::endl;
     std::cerr << std::endl;
@@ -763,11 +764,16 @@ int main(int argc, char** argv) {
 
   if(argc==3 && is_valid) {
     fin.open(argv[2]);
-    try {
-      read_tree_decomposition(fin, T);
-    } catch (const std::invalid_argument& e) {
-      std::cerr << "Invalid format in " << argv[2] << ": " << e.what() << std::endl;
+    if (fin.peek() == std::ifstream::traits_type::eof()) {
       is_valid = false;
+      empty_td_file = true;
+    } else {
+      try {
+        read_tree_decomposition(fin, T);
+      } catch (const std::invalid_argument& e) {
+        std::cerr << "Invalid format in " << argv[2] << ": " << e.what() << std::endl;
+        is_valid = false;
+      }
     }
     fin.close();
 
@@ -779,6 +785,9 @@ int main(int argc, char** argv) {
   if (is_valid) {
     std::cerr << "valid" << std::endl;
     return 0;
+  } else if (empty_td_file) {
+    std::cerr << "invalid: empty .td file" << std::endl;
+    return 2;
   } else {
     std::cerr << "invalid" << std::endl;
     return 1;
