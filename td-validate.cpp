@@ -510,7 +510,7 @@ void read_graph(std::ifstream& fin, graph& g) {
   }
 
   if (g.num_edges != n_edges) {
-    throw std::invalid_argument(INV_PROB);
+    throw std::invalid_argument(std::string(INV_PROB) + " (incorrect number of edges)");
   }
 }
 
