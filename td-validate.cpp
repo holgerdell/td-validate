@@ -277,6 +277,7 @@ enum State {
  */
 const char* INV_FMT = "Invalid format";
 const char* INV_SOLN = "Invalid s-line";
+const char* INV_SOLN_BAGSIZE = "Invalid s-line: Reported bagsize and actual bagsize differ";
 const char* INV_EDGE = "Invalid edge";
 const char* INV_BAG = "Invalid bag";
 const char* INV_BAG_INDEX = "Invalid bag index";
@@ -569,7 +570,7 @@ void read_tree_decomposition(std::ifstream& fin, tree_decomposition& T)
   }
 
   if (width != real_width) {
-    throw std::invalid_argument(INV_SOLN);
+    throw std::invalid_argument(INV_SOLN_BAGSIZE);
   }
 }
 
