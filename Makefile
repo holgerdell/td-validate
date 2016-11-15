@@ -5,7 +5,7 @@ all: td-validate
 
 .PHONY: test
 test: td-validate
-	./run_test.sh
+	./test_td-validate.sh
 
 .PHONY: clean
 clean:
