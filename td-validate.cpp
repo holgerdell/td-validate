@@ -500,13 +500,14 @@ void read_graph(std::ifstream& fin, graph& g) {
       tokens.push_back(line.substr(oldpos, newpos-oldpos));
       oldpos = newpos + delimiter.size();
     }
-
     if (tokens[0] == "c") {
       continue;
     } else if (tokens[0] == "p") {
       read_problem(tokens,g);
-    } else {
+    } else if (tokens.size() == 2){
       read_graph_edge(tokens, g);
+    } else {
+      throw std::invalid_argument(std::string(INV_EDGE) + " (an edge has exactly two endpoints)");
     }
   }
 
