@@ -18,6 +18,7 @@ Licensed under GPLv3.
 
 import os
 import subprocess
+import threading
 import glob
 import tempfile
 import signal
@@ -59,7 +60,6 @@ def test_case_generator(full=False):
     # More test cases where some tw-solvers were buggy in the past
     tests=[ 'test/tw-solver-bugs.graph6' ]
 
-    # Also test on all connected graphs with m<=16
     if full:
         tests.append('test/n_upto_8.graph6')
  
@@ -99,6 +99,7 @@ def td_validate(grstream, tdstream):
             tmp_gr.seek(0)
 
             p = subprocess.Popen(['./td-validate',tmp_gr.name,tmp_td.name])
+            threading.Timer(5, lambda: p.send_signal(signal.SIGTERM)).start()
             p.wait()
             return p.returncode == 0
  
@@ -139,7 +140,7 @@ def run_one_testcase(arg):
 def main():
     parser = argparse.ArgumentParser(description='Automatically test a given treewidth solver')
     parser.add_argument("twsolver", help="path to the treewidth solver you want to test")
-    parser.add_argument("--full", help="test on ALL 10,509,270 connected graphs with up to 16 edges (this could take a while)",
+    parser.add_argument("--full", help="run test on all 2753 graphs with min-degree 3 and at most 8 vertices (this could take a while)",
             action='store_true')
 
     args = parser.parse_args()
