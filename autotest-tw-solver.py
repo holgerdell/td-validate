@@ -99,7 +99,6 @@ def td_validate(grstream, tdstream):
             tmp_gr.seek(0)
 
             p = subprocess.Popen(['./td-validate',tmp_gr.name,tmp_td.name])
-            threading.Timer(5, lambda: p.send_signal(signal.SIGTERM)).start()
             p.wait()
             return p.returncode == 0
  
@@ -117,7 +116,15 @@ def run_one_testcase(arg):
                 stdout=tmp_td,
                 stderr=FNULL)
     
-        p.wait()
+        try:
+            p.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            p.terminate()
+            try:
+                p.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                p.kill()
+
         ifstream.seek(0)
         tmp_td.flush()
         tmp_td.seek(0)
@@ -128,12 +135,12 @@ def run_one_testcase(arg):
         tmp_td.seek(0)
         computed_tw = read_tw_from_td(tmp_td)
 
-        if treewidth != None:
+        if treewidth != None and computed_tw != None:
             if treewidth > computed_tw:
                 print('!! your program said tw={:d} but we thought it was {:d} -- please send your .td file to the developer of td-validate'.format(computed_tw,treewidth))
             elif treewidth < computed_tw:
                 print("non-optimal (your_tw={:d}, optimal_tw={:d})".format(computed_tw,treewidth))
-        nonoptimal = treewidth != None and treewidth < computed_tw
+        nonoptimal = treewidth != None and computed_tw != None and treewidth < computed_tw
         print()
         return valid,nonoptimal
 
