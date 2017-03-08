@@ -1,11 +1,12 @@
-#include <vector>
 #include <algorithm>
-#include <set>
-#include <unordered_set>
-#include <iostream>
+#include <cstdlib>
 #include <fstream>
+#include <iostream>
+#include <set>
+#include <stack>
 #include <string>
-
+#include <unordered_set>
+#include <vector>
 /*
  * If USE_VECTOR is set, use std::vector to store adjacency lists; this seems to
  * be faster for the instances we observed, where the degrees tend to be small
@@ -17,10 +18,19 @@
  * entirely of base-10 digits
  */
 unsigned pure_stou(const std::string& s) {
-  if(s.empty() || s.find_first_not_of("0123456789") != std::string::npos) {
-    throw std::invalid_argument("Non-numeric entry '" + s + "'");
+  if(s.empty()) {
+    throw std::invalid_argument("Empty string");
   }
-  unsigned long result = std::stoul(s);
+  unsigned long result = 0;
+  unsigned long power = 1;
+  for (int i = s.length()-1; i >= 0; i--) {
+    char c = s[i];
+    if (c < '0' || c > '9') {
+      throw std::invalid_argument("Non-numeric entry '" + s + "'");
+    }
+    result += power*(c-'0');
+    power *= 10;
+  }
   if (result > std::numeric_limits<unsigned>::max()) {
     throw std::out_of_range("stou");
   }
@@ -492,6 +502,7 @@ void read_graph(std::ifstream& fin, graph& g) {
     }
 
     std::vector<std::string> tokens;
+    tokens.reserve(line.length());
     size_t oldpos = 0;
     size_t newpos = 0;
 
@@ -544,6 +555,7 @@ void read_tree_decomposition(std::ifstream& fin, tree_decomposition& T)
     }
 
     std::vector<std::string> tokens;
+    tokens.reserve(line.length());
     size_t oldpos = 0;
     size_t newpos = 0;
 
@@ -657,6 +669,7 @@ bool check_edge_coverage(tree_decomposition& T, graph& g)
  */
 bool check_connectedness(tree_decomposition& T)
 {
+  if (T.bags.size() == 0) return true;
   /*
    * At each leaf, we first check whether it contains some forgotten vertex (in
    * which case we return false), and if it doesn't, we compute whether there
@@ -671,50 +684,38 @@ bool check_connectedness(tree_decomposition& T)
    * condition of the bags containing any given vertex forming a subtree of the
    * decomposition.
    */
-  std::set<unsigned> forgotten;
 
+  // forgotten[i] != 0 if and only if the vertex with index i (starting from 0)
+  // is currently forbidden
+  std::vector<bool> forgotten(n_graph,0);
+  std::stack<unsigned> parent_stack;
+  unsigned NIL = T.bags.size()+1;
+  unsigned next = NIL;
+  unsigned head = NIL;
+  std::stack<unsigned> stack;
+  stack.push(0);
+  parent_stack.push(NIL);
+  while (!stack.empty()) {
+    head = next;
+    next = stack.top();
 
-  /* A vector to keep track of those bags that were removed during the check for
-   * subtree connectivity */
-  std::vector<int> bags_removed;
-  bags_removed.resize(T.bags.size(),0);
-
-  while (T.num_vertices > 0) {
-    /* In every iteration, we first find a leaf of the tree. We do this in an
-     * overly naive way by running through all of the tree, but given the small
-     * size of the instances, this does not matter much.  This can be formulated
-     * using some form of DFS-visitor-pattern, but this gets the job done as
-     * well.
-     */
-    for(unsigned i = 0; i < T.bags.size(); i++) {
-      /*
-       * If we are dealing with a leaf (or an isolated, non-empty bag, which may
-       * only happen in the last iteration when there is only one non-empty bag
-       * left, by the semantics of the remove_vertex-method), then we first see
-       * if there is a non-empty intersection with the set of forgotten
-       * vertices, and if so, return false. If this is not the case, we add all
-       * vertices appearing in the bag but not its parent to the set of
-       * forgotten vertices and continue to look for the next leaf.
-       */
-      if (T.neighbors(i).size() == 1 || (T.neighbors(i).size() == 0 && bags_removed.at(i) == 0)) {
-        std::set<unsigned> intersection;
-        std::set_intersection(forgotten.begin(), forgotten.end(),
-            T.get_bag(i).begin(), T.get_bag(i).end(),
-            std::inserter(intersection, intersection.begin()));
-        if(!intersection.empty()) {
-          return false;
+    // Once all subtrees at next are processed, do the operation at next (i.e.,
+    // this is post-order traversal)
+    if (head == next) {
+      stack.pop();
+      if (head==parent_stack.top()) parent_stack.pop();
+      unsigned parent = parent_stack.top();
+      for (auto it = T.get_bag(head).begin(); it != T.get_bag(head).end(); ++it) {
+        if (forgotten[*it-1] == true) return false;
+        if (parent != NIL && T.get_bag(parent).find(*it) == T.get_bag(parent).end()) {
+          forgotten[*it-1] = true;
         }
-
-        if (T.neighbors(i).size() > 0) {
-          unsigned parent = T.neighbors(i).at(0);
-          std::set_difference(T.get_bag(i).begin(), T.get_bag(i).end(),
-              T.get_bag(parent).begin(), T.get_bag(parent).end(),
-              std::inserter(forgotten, forgotten.begin()));
-        }
-
-        T.remove_vertex(i);
-        bags_removed.at(i) = 1;
-        break;
+      }
+      T.remove_vertex(head);
+    } else {
+      parent_stack.push(next);
+      for (unsigned i = 0; i < T.neighbors(next).size(); i++) {
+        if (T.neighbors(next).at(i) != head) stack.push(T.neighbors(next).at(i));
       }
     }
   }
@@ -746,6 +747,7 @@ bool is_valid_decomposition(tree_decomposition& T, graph& g)
 int main(int argc, char** argv) {
   bool is_valid = true;
   bool empty_td_file = false;
+
   if (argc < 2 || argc > 3) {
     std::cerr << "Usage: " << argv[0] << " input.gr [input.td]" << std::endl;
     std::cerr << std::endl;
@@ -778,7 +780,6 @@ int main(int argc, char** argv) {
       }
     }
     fin.close();
-
     if (is_valid) {
       is_valid = is_valid_decomposition(T,g);
     }
