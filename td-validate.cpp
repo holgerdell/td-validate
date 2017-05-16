@@ -288,6 +288,7 @@ enum State {
 const char* INV_FMT = "Invalid format";
 const char* INV_SOLN = "Invalid s-line";
 const char* INV_SOLN_BAGSIZE = "Invalid s-line: Reported bagsize and actual bagsize differ";
+const char* SOLN_MISSING = "s-line is missing";
 const char* INV_EDGE = "Invalid edge";
 const char* INV_BAG = "Invalid bag";
 const char* INV_BAG_INDEX = "Invalid bag index";
@@ -535,6 +536,7 @@ void read_graph(std::ifstream& fin, graph& g) {
  */
 void read_tree_decomposition(std::ifstream& fin, tree_decomposition& T)
 {
+  bool seen_s_line = false;
   current_state = COMMENT_SECTION;
   n_graph = -1;
   n_decomp = 0;
@@ -568,12 +570,19 @@ void read_tree_decomposition(std::ifstream& fin, tree_decomposition& T)
     if (tokens[0] == "c") {
       continue;
     } else if (tokens[0] == "s") {
+      seen_s_line = true;
       read_solution(tokens);
     } else if (tokens[0] == "b") {
+      if (! seen_s_line) break;
       read_bag(tokens);
     } else {
+      if (! seen_s_line) break;
       read_decomp_edge(tokens, T);
     }
+  }
+
+  if (! seen_s_line) {
+    throw std::invalid_argument(SOLN_MISSING);
   }
 
   if (current_state == BAGS) {
