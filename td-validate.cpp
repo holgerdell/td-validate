@@ -575,9 +575,11 @@ void read_tree_decomposition(std::ifstream& fin, tree_decomposition& T)
     } else if (tokens[0] == "b") {
       if (! seen_s_line) break;
       read_bag(tokens);
-    } else {
+    } else if (tokens.size() == 2){
       if (! seen_s_line) break;
       read_decomp_edge(tokens, T);
+    } else {
+      throw std::invalid_argument(std::string(INV_EDGE) + " (an edge has exactly two endpoints)");
     }
   }
 
