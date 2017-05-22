@@ -430,7 +430,7 @@ void read_decomp_edge(const std::vector<std::string>& tokens, tree_decomposition
 
   unsigned s = pure_stou(tokens[0]);
   unsigned d = pure_stou(tokens[1]);
-  if(s < 1 || d < 1 || s > n_decomp || d > n_decomp) {
+  if(s < 1 || d <= s || d > n_decomp) {
     throw std::invalid_argument(INV_EDGE);
   }
   T.add_edge(s-1, d-1);
