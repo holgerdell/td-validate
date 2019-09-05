@@ -32,6 +32,21 @@ unsigned pure_stou(const std::string& s) {
   return result;
 }
 
+/*
+ * Given a string, split it at ' ' and return vector of words
+ */
+std::vector<std::string> tokenize(const std::string &line)
+{
+  std::vector<std::string> tokens;
+  size_t oldpos = 0, newpos = 0;
+  while(newpos != std::string::npos) {
+    newpos = line.find(" ", oldpos);
+    tokens.push_back(line.substr(oldpos, newpos-oldpos));
+    oldpos = newpos + 1;
+  }
+  return tokens;
+}
+
 #ifdef USE_VECTOR
 /*
  * The most basic graph structure you could imagine, in adjacency list
@@ -492,29 +507,15 @@ void read_graph(std::ifstream& fin, graph& g) {
   std::string line;
 
   while(std::getline(fin, line)) {
-    if(line == "" || line == "\n") {
+    auto tokens = tokenize(line);
+    if (tokens.size() == 0) {
       throw std::invalid_argument(EMPTY_LINE);
-    }
-
-    std::vector<std::string> tokens;
-    tokens.reserve(2);
-
-    size_t oldpos = 0;
-    size_t newpos = 0;
-
-    while(newpos != std::string::npos) {
-      newpos = line.find(" ", oldpos);
-      tokens.push_back(line.substr(oldpos, newpos-oldpos));
-      oldpos = newpos + 1;
-    }
-    if (tokens[0] == "c") {
-      continue;
     } else if (tokens[0] == "p") {
       read_problem(tokens, g);
-    } else if (tokens.size() == 2){
+    } else if (tokens.size() == 2) {
       read_graph_edge(tokens, g);
-    } else {
-      throw std::invalid_argument(std::string(INV_EDGE) + " (an edge has exactly two endpoints)");
+    } else if (tokens[0] != "c") {
+      throw std::invalid_argument(std::string(INV_FMT) + " in line: " + line);
     }
   }
 
@@ -546,34 +547,20 @@ void read_tree_decomposition(std::ifstream& fin, tree_decomposition& T)
   std::string line;
 
   while(std::getline(fin, line)) {
-    if(line == "" || line == "\n") {
+    auto tokens = tokenize(line);
+    if (tokens.size() == 0) {
       throw std::invalid_argument(EMPTY_LINE);
-    }
-
-    std::vector<std::string> tokens;
-    tokens.reserve(line.length());
-    size_t oldpos = 0;
-    size_t newpos = 0;
-
-    while(newpos != std::string::npos) {
-      newpos = line.find(" ", oldpos);
-      tokens.push_back(line.substr(oldpos, newpos-oldpos));
-      oldpos = newpos + 1;
-    }
-
-    if (tokens[0] == "c") {
-      continue;
     } else if (tokens[0] == "s") {
       seen_s_line = true;
       read_solution(tokens);
     } else if (tokens[0] == "b") {
       if (! seen_s_line) break;
       read_bag(tokens);
-    } else if (tokens.size() == 2){
+    } else if (tokens.size() == 2) {
       if (! seen_s_line) break;
       read_decomp_edge(tokens, T);
-    } else {
-      throw std::invalid_argument(std::string(INV_EDGE) + " (an edge has exactly two endpoints)");
+    } else if (tokens[0] != "c") {
+      throw std::invalid_argument(std::string(INV_FMT) + " in line: " + line);
     }
   }
 
@@ -695,8 +682,7 @@ bool check_connectedness(tree_decomposition& T)
   std::vector<bool> forgotten(n_graph,0);
   std::stack<unsigned> parent_stack;
   unsigned NIL = T.bags.size()+1;
-  unsigned next = NIL;
-  unsigned head = NIL;
+  unsigned head, next = NIL;
   std::stack<unsigned> stack;
   stack.push(0);
   parent_stack.push(NIL);
