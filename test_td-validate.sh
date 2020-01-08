@@ -23,11 +23,15 @@ do
   fi
   if [ "0$STATE" -eq "0$2" ]
   then
-    tput setaf 2;
+    if [[ $- == *i* ]]; then
+      tput setaf 2;
+    fi
     echo "ok  " "$file" "$INFO"
     NUM_PASSED=$[$NUM_PASSED + 1]
   else
-    tput setaf 1;
+    if [[ $- == *i* ]]; then
+      tput setaf 1;
+    fi
     echo "FAIL" "$file" "$INFO"
   fi
 done
@@ -39,7 +43,9 @@ do_test invalid 1
 echo
 do_test empty 2
 
-tput sgr0;
+if [[ $- == *i* ]]; then
+  tput sgr0;
+fi
 
 echo
 echo "$NUM_PASSED of $NUM_ALL tests passed."
