@@ -7,30 +7,32 @@ NUM_ALL=0
 
 do_test()
 {
-for grfile in test/$1/*.gr;
+for grfile in test/$1/*.gr
 do
   file="${grfile%%.gr}"
   NUM_ALL=$[$NUM_ALL + 1]
   if [ -f "$file.td" ]
   then
-    $VALIDATE "$grfile" "$file.td" &> /dev/null;
+    $VALIDATE "$grfile" "$file.td" &> /dev/null
     STATE=$?
     INFO="(gr + td)"
   else
-    $VALIDATE "$grfile" &> /dev/null;
+    $VALIDATE "$grfile" &> /dev/null
     STATE=$?
     INFO="(gr)"
   fi
   if [ "0$STATE" -eq "0$2" ]
   then
-    if [[ $- == *i* ]]; then
-      tput setaf 2;
+    if tput colors &> /dev/null
+    then
+      tput setaf 2
     fi
     echo "ok  " "$file" "$INFO"
     NUM_PASSED=$[$NUM_PASSED + 1]
   else
-    if [[ $- == *i* ]]; then
-      tput setaf 1;
+    if tput colors &> /dev/null
+    then
+      tput setaf 1
     fi
     echo "FAIL" "$file" "$INFO"
   fi
@@ -43,8 +45,9 @@ do_test invalid 1
 echo
 do_test empty 2
 
-if [[ $- == *i* ]]; then
-  tput sgr0;
+if tput colors &> /dev/null
+then
+  tput sgr0
 fi
 
 echo
