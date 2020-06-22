@@ -1,4 +1,4 @@
-CXXFLAGS=-std=c++11 -O3 -march=native -Wall -Wextra
+CXXFLAGS=-std=c++17 -O3 -march=native -Wall -Wextra
 
 .PHONY: all
 all: td-validate

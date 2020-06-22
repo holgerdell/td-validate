@@ -1,12 +1,15 @@
+/* Copyright 2016-2020 Holger Dell (MIT License) */
 #include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <set>
 #include <stack>
 #include <string>
 #include <unordered_set>
 #include <vector>
+
 /*
  * If USE_VECTOR is set, use std::vector to store adjacency lists; this seems to
  * be faster for the instances we observed, where the degrees tend to be small
@@ -18,7 +21,7 @@
  * entirely of base-10 digits
  */
 unsigned pure_stou(const std::string& s) {
-  if(s.empty()) {
+  if (s.empty()) {
     throw std::invalid_argument("Empty string");
   }
   unsigned result = 0;
@@ -35,11 +38,10 @@ unsigned pure_stou(const std::string& s) {
 /*
  * Given a string, split it at ' ' and return vector of words
  */
-std::vector<std::string> tokenize(const std::string &line)
-{
+std::vector<std::string> tokenize(const std::string& line) {
   std::vector<std::string> tokens;
   size_t oldpos = 0, newpos = 0;
-  while(newpos != std::string::npos) {
+  while (newpos != std::string::npos) {
     newpos = line.find(" ", oldpos);
     tokens.push_back(line.substr(oldpos, newpos-oldpos));
     oldpos = newpos + 1;
@@ -73,7 +75,7 @@ struct graph {
    * The neighbors of a given vertex, where the index is, as usual, starting
    * with 0. Does *not* include the vertex itself
    */
-  std::vector<unsigned>& neighbors(unsigned vertex_index) {
+  const std::vector<unsigned>& neighbors(unsigned vertex_index) const {
     return adj_list[vertex_index];
   }
 
@@ -177,7 +179,7 @@ struct tree_decomposition {
    * index.  Vertices in this class are indexed starting with 0 (!).  This is
    * important because the vertices in the file format are not.
    */
-  unsigned add_bag(vertex_t& bag) {
+  unsigned add_bag(const vertex_t& bag) {
     bags.push_back(bag);
     adj_list.push_back(std::vector<unsigned>());
     return num_vertices++;
@@ -203,8 +205,8 @@ struct tree_decomposition {
    * See the graph class
    */
   void remove_edge(unsigned u, unsigned v) {
-    auto v_it = std::find(adj_list.at(u).begin(),adj_list.at(u).end(),v);
-    auto u_it = std::find(adj_list.at(v).begin(),adj_list.at(v).end(),u);
+    auto v_it = std::find(adj_list.at(u).begin(), adj_list.at(u).end(), v);
+    auto u_it = std::find(adj_list.at(v).begin(), adj_list.at(v).end(), u);
     if (v_it != adj_list.at(u).end() && u_it != adj_list.at(v).end()) {
       adj_list.at(u).erase(v_it);
       adj_list.at(v).erase(u_it);
@@ -225,7 +227,7 @@ struct tree_decomposition {
       remove.push_back(*it);
     }
     for (auto it = remove.begin(); it != remove.end(); it++) {
-      remove_edge(u,*it);
+      remove_edge(u, *it);
     }
     num_vertices--;
   }
@@ -233,45 +235,47 @@ struct tree_decomposition {
   /*
    * Get the u-th bag
    */
-  vertex_t& get_bag(unsigned u) {
+  const vertex_t& get_bag(unsigned u) const {
     return bags.at(u);
   }
 
   /*
    * Checks if the given decomposition constitutes a tree using DFS
    */
-  bool is_tree() {
-    if ((num_vertices > 0) && num_vertices - 1 != num_edges) {
+  bool is_tree() const {
+    if (num_vertices > 0 && num_vertices - 1 != num_edges) {
       return false;
     } else if (num_vertices == 0) {
-      return (num_edges == 0);
+      return num_edges == 0;
+    } else {
+      unsigned num_seen;
+      bool acyclic = tree_dfs(&num_seen);
+      return acyclic && num_seen == num_vertices;
     }
-
-    std::vector<int> seen(num_vertices, 0);
-    unsigned seen_size = 0;
-
-    bool cycle = !tree_dfs(seen,0,-1,seen_size);
-    if (cycle || seen_size != num_vertices) {
-      return false;
-    }
-    return true;
   }
 
   /*
    * Helper method for is_tree(); not to be called from outside of the class
    */
-  bool tree_dfs(std::vector<int>& seen, unsigned root, unsigned parent, unsigned& num_seen) {
-    if (seen[root] != 0) {
-      return false;
-    }
+  bool tree_dfs(unsigned* num_seen) const {
+    std::vector<unsigned> parent(num_vertices, std::numeric_limits<unsigned>::max());
+    std::stack<unsigned> stack;
+    stack.push(0);
+    parent[0] = 0;
+    *num_seen = 0;
 
-    seen[root] = 1;
-    num_seen++;
-
-    for (auto it = adj_list[root].begin(); it != adj_list[root].end(); it++) {
-      if (*it != parent) {
-        if (!tree_dfs(seen, *it, root,num_seen)) {
-          return false;
+    while (!stack.empty()) {
+      unsigned v = stack.top();
+      stack.pop();
+      (*num_seen)++;
+      for (auto it = adj_list[v].begin(); it != adj_list[v].end(); it++) {
+        if ((*it) != parent[v]) {
+          if (parent[*it] != std::numeric_limits<unsigned>::max()) {
+            return false;
+          } else {
+            parent[*it] = v;
+            stack.push(*it);
+          }
         }
       }
     }
@@ -355,13 +359,12 @@ std::vector<std::set<unsigned>> bags;
  * Given the tokens from one line (split on whitespace), this reads the
  * s-line from these tokens and initializes the corresponding globals
  */
-void read_solution(const std::vector<std::string>& tokens)
-{
+void read_solution(const std::vector<std::string>& tokens) {
   if (current_state != COMMENT_SECTION) {
     throw std::invalid_argument(INV_FMT);
   }
   current_state = S_LINE;
-  if(tokens.size() != 5 || tokens[1] != "td") {
+  if (tokens.size() != 5 || tokens[1] != "td") {
     throw std::invalid_argument(INV_SOLN);
   }
 
@@ -377,19 +380,18 @@ void read_solution(const std::vector<std::string>& tokens)
  * Given the tokens from one line (split on whitespace), this reads the bag
  * represented by these tokens and manipulates the global bags accordingly
  */
-void read_bag(const std::vector<std::string>& tokens)
-{
+void read_bag(const std::vector<std::string>& tokens) {
   if (current_state == S_LINE) {
     current_state = BAGS;
     bags.resize(n_decomp);
-    bags_seen.resize(n_decomp,0);
+    bags_seen.resize(n_decomp, 0);
   }
 
   if (current_state != BAGS) {
     throw std::invalid_argument(INV_FMT);
   }
 
-  if(tokens.size() < 2) {
+  if (tokens.size() < 2) {
     throw std::invalid_argument(NO_BAG_INDEX);
   }
 
@@ -399,7 +401,7 @@ void read_bag(const std::vector<std::string>& tokens)
   }
   bags_seen[bag_num-1] = 1;
 
-  for(unsigned i = 2; i < tokens.size(); i++) {
+  for (unsigned i = 2; i < tokens.size(); i++) {
     if (tokens[i] == "") break;
     unsigned id = pure_stou(tokens[i]);
     if (id < 1 || id > n_graph) {
@@ -409,7 +411,7 @@ void read_bag(const std::vector<std::string>& tokens)
     bags[bag_num-1].insert(id);
   }
 
-  if(bags[bag_num-1].size() > real_width) {
+  if (bags[bag_num-1].size() > real_width) {
     real_width = bags[bag_num-1].size();
   }
 }
@@ -419,8 +421,7 @@ void read_bag(const std::vector<std::string>& tokens)
  * decomposition, this reads the edge represented by this line (in the
  * decomposition) and adds the respective edge to the tree decomposition
  */
-void read_decomp_edge(const std::vector<std::string>& tokens, tree_decomposition &T)
-{
+void read_decomp_edge(const std::vector<std::string>& tokens, tree_decomposition* T) {
   if (current_state == BAGS) {
     for (auto it = bags_seen.begin(); it != bags_seen.end(); it++) {
       if (*it == 0) {
@@ -429,7 +430,7 @@ void read_decomp_edge(const std::vector<std::string>& tokens, tree_decomposition
     }
 
     for (auto it = bags.begin(); it != bags.end(); it++) {
-      T.add_bag(*it);
+      T->add_bag(*it);
     }
     current_state = EDGES;
   }
@@ -440,30 +441,30 @@ void read_decomp_edge(const std::vector<std::string>& tokens, tree_decomposition
 
   unsigned s = pure_stou(tokens[0]);
   unsigned d = pure_stou(tokens[1]);
-  if(s < 1 || d < 1 || s > n_decomp || d > n_decomp) {
+  if (s < 1 || d < 1 || s > n_decomp || d > n_decomp) {
     throw std::invalid_argument(std::string(INV_EDGE) + ": " + tokens[0] + " " + tokens[1] + ".");
   }
-  T.add_edge(s-1, d-1);
+  T->add_edge(s-1, d-1);
 }
 
 /*
  * Given the tokens from one line (split on whitespace), this reads the
  * p-line from these tokens and initializes the corresponding globals
  */
-void read_problem(const std::vector<std::string>& tokens, graph& g) {
+void read_problem(const std::vector<std::string>& tokens, graph* g) {
   if (current_state != COMMENT_SECTION) {
     throw std::invalid_argument(INV_FMT);
   }
   current_state = P_LINE;
 
-  if(tokens.size() != 4 || tokens[1] != "tw") {
+  if (tokens.size() != 4 || tokens[1] != "tw") {
     throw std::invalid_argument(INV_PROB);
   }
 
   n_vertices = pure_stou(tokens[2]);
   n_edges = pure_stou(tokens[3]);
 
-  while (g.add_vertex()+1 < n_vertices) {};
+  while (g->add_vertex()+1 < n_vertices) {}
 }
 
 /*
@@ -471,8 +472,7 @@ void read_problem(const std::vector<std::string>& tokens, graph& g) {
  * decomposition, this reads the edge (in the graph) represented by this line
  * and adds the respective edge to the graph
  */
-void read_graph_edge(const std::vector<std::string>& tokens, graph& g)
-{
+void read_graph_edge(const std::vector<std::string>& tokens, graph* g) {
   if (current_state == P_LINE) {
     current_state = EDGES;
   }
@@ -483,10 +483,10 @@ void read_graph_edge(const std::vector<std::string>& tokens, graph& g)
 
   unsigned s = pure_stou(tokens[0]);
   unsigned d = pure_stou(tokens[1]);
-  if(s < 1 || d < 1 || s > n_vertices || d > n_vertices) {
+  if (s < 1 || d < 1 || s > n_vertices || d > n_vertices) {
     throw std::invalid_argument(std::string(INV_EDGE) + ": " + tokens[0] + " " + tokens[1] + ".");
   }
-  g.add_edge(s-1, d-1);
+  g->add_edge(s-1, d-1);
 }
 
 /*
@@ -495,18 +495,18 @@ void read_graph_edge(const std::vector<std::string>& tokens, graph& g)
  * format, it throws a corresponding std::invalid_argument with one of the error
  * messages defined above.
  */
-void read_graph(std::ifstream& fin, graph& g) {
+void read_graph(std::ifstream& fin, graph* g) {
   current_state = COMMENT_SECTION;
   n_edges = -1;
   n_vertices = -1;
 
-  if(!fin.is_open()){
+  if (!fin.is_open()) {
     throw std::invalid_argument(FILE_ERROR);
   }
 
   std::string line;
 
-  while(std::getline(fin, line)) {
+  while (std::getline(fin, line)) {
     auto tokens = tokenize(line);
     if (tokens.size() == 0) {
       throw std::invalid_argument(EMPTY_LINE);
@@ -519,7 +519,7 @@ void read_graph(std::ifstream& fin, graph& g) {
     }
   }
 
-  if (g.num_edges != n_edges) {
+  if (g->num_edges != n_edges) {
     throw std::invalid_argument(std::string(INV_PROB) + " (incorrect number of edges)");
   }
 }
@@ -530,8 +530,7 @@ void read_graph(std::ifstream& fin, graph& g) {
  * the format, it throws a corresponding std::invalid_argument with one of the
  * error messages defined above.
  */
-void read_tree_decomposition(std::ifstream& fin, tree_decomposition& T)
-{
+void read_tree_decomposition(std::ifstream& fin, tree_decomposition* T) {
   bool seen_s_line = false;
   current_state = COMMENT_SECTION;
   n_graph = -1;
@@ -540,13 +539,13 @@ void read_tree_decomposition(std::ifstream& fin, tree_decomposition& T)
   bags_seen.clear();
   bags.clear();
 
-  if(!fin.is_open()){
+  if (!fin.is_open()) {
     throw std::invalid_argument(FILE_ERROR);
   }
 
   std::string line;
 
-  while(std::getline(fin, line)) {
+  while (std::getline(fin, line)) {
     auto tokens = tokenize(line);
     if (tokens.size() == 0) {
       throw std::invalid_argument(EMPTY_LINE);
@@ -554,23 +553,23 @@ void read_tree_decomposition(std::ifstream& fin, tree_decomposition& T)
       seen_s_line = true;
       read_solution(tokens);
     } else if (tokens[0] == "b") {
-      if (! seen_s_line) break;
+      if (!seen_s_line) break;
       read_bag(tokens);
     } else if (tokens.size() == 2) {
-      if (! seen_s_line) break;
+      if (!seen_s_line) break;
       read_decomp_edge(tokens, T);
     } else if (tokens[0] != "c") {
       throw std::invalid_argument(std::string(INV_FMT) + " in line: " + line);
     }
   }
 
-  if (! seen_s_line) {
+  if (!seen_s_line) {
     throw std::invalid_argument(SOLN_MISSING);
   }
 
   if (current_state == BAGS) {
     for (auto it = bags.begin(); it != bags.end(); it++) {
-      T.add_bag(*it);
+      T->add_bag(*it);
     }
   }
 
@@ -583,12 +582,13 @@ void read_tree_decomposition(std::ifstream& fin, tree_decomposition& T)
  * Given a graph and a decomposition, this checks whether or not the set of
  * vertices in the graph equals the union of all bags in the decomposition.
  */
-bool check_vertex_coverage(tree_decomposition& T)
-{
+bool check_vertex_coverage(const tree_decomposition& T) {
   if (!(n_graph == n_vertices)) {
     std::cerr << "Error: .gr and .td disagree on how many vertices the graph has" << std::endl;
     return false;
-  } else if (n_vertices == 0) return true;
+  } else if (n_vertices == 0) {
+    return true;
+  }
 
   std::vector<unsigned> occurrence_nums(n_graph, 0);
   for (unsigned i = 0; i < n_decomp; i++) {
@@ -612,44 +612,41 @@ bool check_vertex_coverage(tree_decomposition& T)
  * graph all those edges of the graph that are in fact contained in some bag.
  * The emptiness of the edge set of the resulting pruned graph is used to decide
  * whether the decomposition has this property.
+ * (Note: the graph will be destroyed)
  */
-bool check_edge_coverage(tree_decomposition& T, graph& g)
-{
-  std::vector<std::pair<unsigned,unsigned>> to_remove;
+bool check_edge_coverage(const tree_decomposition& T, graph* g) {
+  std::vector<std::pair<unsigned, unsigned>> to_remove;
   /*
    * We go through all bags, and for each vertex in each bag, we remove all its
    * incident edges.  If all the edges are indeed covered by at least one bag,
    * this will leave the graph with an empty edge-set, and it won't if they
    * aren't.
    */
-  for(unsigned i = 0; i < T.bags.size() && g.num_edges > 0; i++){
-    std::set<unsigned>& it_bag = T.get_bag(i);
-    for (std::set<unsigned>::iterator head = it_bag.begin(); head != it_bag.end(); ++head) {
-      for(auto tail = g.neighbors(*head-1).begin(); tail != g.neighbors(*head-1).end(); ++tail) {
-        if(it_bag.find(*tail+1) != it_bag.end()) {
-          to_remove.push_back(std::pair<unsigned, unsigned>(*head,*tail));
+  for (unsigned i = 0; i < T.bags.size() && g->num_edges > 0; i++) {
+    const std::set<unsigned>& it_bag = T.get_bag(i);
+    for (auto head = it_bag.begin(); head != it_bag.end(); ++head) {
+      for (auto tail = g->neighbors(*head-1).begin(); tail != g->neighbors(*head-1).end(); ++tail) {
+        if (it_bag.find(*tail+1) != it_bag.end()) {
+          to_remove.push_back(std::pair<unsigned, unsigned>(*head, *tail));
         }
       }
-      for (std::vector<std::pair<unsigned, unsigned>>::iterator rem_it = to_remove.begin(); rem_it != to_remove.end(); ++rem_it) {
-        g.remove_edge(rem_it->first-1,rem_it->second);
+      for (auto rem_it = to_remove.begin(); rem_it != to_remove.end(); ++rem_it) {
+        g->remove_edge(rem_it->first-1, rem_it->second);
       }
       to_remove.clear();
     }
   }
 
-  if (g.num_edges > 0)
-  {
-    for (unsigned u = 0; u < g.num_vertices; u++)
-    {
-      if (! g.adj_list.at(u).empty() )
-      {
-        unsigned v=g.adj_list.at(u).front();
+  if (g->num_edges > 0) {
+    for (unsigned u = 0; u < g->num_vertices; u++) {
+      if (!g->adj_list.at(u).empty()) {
+        unsigned v = g->adj_list.at(u).front();
         std::cerr << "Error: edge {"<< (u+1) << ", " << (v+1) << "} appears in no bag" << std::endl;
         break;
       }
     }
   }
-  return (g.num_edges == 0);
+  return g->num_edges == 0;
 }
 
 /*
@@ -659,9 +656,8 @@ bool check_edge_coverage(tree_decomposition& T, graph& g)
  * decomposition until the tree is empty, and hence the decomposition will
  * consist only of isolated empty bags after calling this function.
  */
-bool check_connectedness(tree_decomposition& T)
-{
-  if (T.bags.size() == 0) return true;
+bool check_connectedness(tree_decomposition* T) {
+  if (T->bags.size() == 0) return true;
   /*
    * At each leaf, we first check whether it contains some forgotten vertex (in
    * which case we return false), and if it doesn't, we compute whether there
@@ -679,34 +675,34 @@ bool check_connectedness(tree_decomposition& T)
 
   // forgotten[i] != 0 if and only if the vertex with index i (starting from 0)
   // is currently forbidden
-  std::vector<bool> forgotten(n_graph,0);
+  std::vector<bool> forgotten(n_graph, 0);
   std::stack<unsigned> parent_stack;
-  unsigned NIL = T.bags.size()+1;
-  unsigned head, next = NIL;
+  unsigned NIL = T->bags.size()+1;
+  unsigned next = NIL;
   std::stack<unsigned> stack;
   stack.push(0);
   parent_stack.push(NIL);
   while (!stack.empty()) {
-    head = next;
+    unsigned head = next;
     next = stack.top();
 
     // Once all subtrees at next are processed, do the operation at next (i.e.,
     // this is post-order traversal)
     if (head == next) {
       stack.pop();
-      if (head==parent_stack.top()) parent_stack.pop();
+      if (head == parent_stack.top()) parent_stack.pop();
       unsigned parent = parent_stack.top();
-      for (auto it = T.get_bag(head).begin(); it != T.get_bag(head).end(); ++it) {
+      for (auto it = T->get_bag(head).begin(); it != T->get_bag(head).end(); ++it) {
         if (forgotten[*it-1] == true) return false;
-        if (parent != NIL && T.get_bag(parent).find(*it) == T.get_bag(parent).end()) {
+        if (parent != NIL && T->get_bag(parent).find(*it) == T->get_bag(parent).end()) {
           forgotten[*it-1] = true;
         }
       }
-      T.remove_vertex(head);
+      T->remove_vertex(head);
     } else {
       parent_stack.push(next);
-      for (unsigned i = 0; i < T.neighbors(next).size(); i++) {
-        if (T.neighbors(next).at(i) != head) stack.push(T.neighbors(next).at(i));
+      for (unsigned i = 0; i < T->neighbors(next).size(); i++) {
+        if (T->neighbors(next).at(i) != head) stack.push(T->neighbors(next).at(i));
       }
     }
   }
@@ -716,21 +712,20 @@ bool check_connectedness(tree_decomposition& T)
 /*
  * Using all of the above functions, this simply checks whether a given
  * purported tree decomposition for some graph actually is one.
+ * (this function destroys the tree decomposition and the graph.)
  */
-bool is_valid_decomposition(tree_decomposition& T, graph& g)
-{
-  if (!T.is_tree()) {
+bool is_valid_decomposition(tree_decomposition* T, graph* g) {
+  if (!T->is_tree()) {
     std::cerr << "Error: not a tree" << std::endl;
     return false;
-  } else if (!check_vertex_coverage(T)) {
+  } else if (!check_vertex_coverage(*T)) {
     return false;
-  } else if (!check_edge_coverage(T,g)) {
+  } else if (!check_edge_coverage(*T, g)) {
     return false;
   } else if (!check_connectedness(T)) {
     std::cerr << "Error: some vertex induces disconnected components in the tree" << std::endl;
     return false;
-  }
-  else {
+  } else {
     return true;
   }
 }
@@ -740,9 +735,10 @@ int main(int argc, char** argv) {
   bool empty_td_file = false;
 
   if (argc < 2 || argc > 3) {
-    std::cerr << "Usage: " << argv[0] << " input.gr [input.td]" << std::endl;
-    std::cerr << std::endl;
-    std::cerr << "Validates syntactical and semantical correctness of .gr and .td files. If only a .gr file is given, it validates the syntactical correctness of that file." << std::endl;
+    std::cerr << "Usage: " << argv[0] << " input.gr [input.td]" << std::endl << std::endl
+      << "Validates syntactical and semantical correctness of .gr and .td files." << std::endl
+      << "If only a .gr file is given, it validates the syntactical correctness of that file."
+      << std::endl;
     exit(1);
   }
   tree_decomposition T;
@@ -750,21 +746,21 @@ int main(int argc, char** argv) {
 
   std::ifstream fin(argv[1]);
   try {
-    read_graph(fin,g);
+    read_graph(fin, &g);
   } catch (const std::invalid_argument& e) {
     std::cerr << "Invalid format in " << argv[1] << ": " << e.what() << std::endl;
     is_valid = false;
   }
   fin.close();
 
-  if(argc==3 && is_valid) {
+  if (argc == 3 && is_valid) {
     fin.open(argv[2]);
     if (fin.peek() == std::ifstream::traits_type::eof()) {
       is_valid = false;
       empty_td_file = true;
     } else {
       try {
-        read_tree_decomposition(fin, T);
+        read_tree_decomposition(fin, &T);
       } catch (const std::invalid_argument& e) {
         std::cerr << "Invalid format in " << argv[2] << ": " << e.what() << std::endl;
         is_valid = false;
@@ -772,7 +768,7 @@ int main(int argc, char** argv) {
     }
     fin.close();
     if (is_valid) {
-      is_valid = is_valid_decomposition(T,g);
+      is_valid = is_valid_decomposition(&T, &g);
     }
   }
 
