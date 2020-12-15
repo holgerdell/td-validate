@@ -36,7 +36,7 @@ def read_tw_from_td(ifstream):
 def test_case_generator(full=False):
     """
     Return a generator for all test cases.
-    
+
     Each test case is a tuple (name, grfilestream, treewidth)
     where
       - name is a string indicating the name of the test case
@@ -68,7 +68,7 @@ def test_case_generator(full=False):
                 graph6 = line[0]
                 treewidth = int(line[1])
 
-                G = networkx.parse_graph6(graph6)
+                G = networkx.from_graph6_bytes(bytes(graph6, "utf-8"))
                 n = G.order()
                 m = G.size()
 
