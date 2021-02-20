@@ -82,6 +82,7 @@ def test_case_generator(full=False):
 
 
 tw_executable = ""
+tw_executable_args = []
 FNULL = open(os.devnull, "w")
 
 
@@ -106,12 +107,15 @@ def run_one_testcase(arg):
     """given the name of a testcase, the input stream for a .gr file, and the
     correct treewidth, this function runs the test"""
 
-    global tw_executable
+    global tw_executable, tw_executable_args
     name, ifstream, treewidth = arg
 
     with tempfile.TemporaryFile("w+") as tmp_td:
+        executable = [tw_executable]
+        for arg in tw_executable_args:
+            executable.append(arg)
         p = subprocess.Popen(
-            [tw_executable], stdin=ifstream, stdout=tmp_td, stderr=FNULL
+            executable, stdin=ifstream, stdout=tmp_td, stderr=FNULL
         )
 
         try:
@@ -155,26 +159,35 @@ def run_one_testcase(arg):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Automatically test a given treewidth solver"
+        description="Automatically test a given treewidth solver",
+        prefix_chars='+'
     )
     parser.add_argument(
         "twsolver", help="path to the treewidth solver you want to test"
     )
     parser.add_argument(
-        "--full",
+        "++full",
         help="run test on all 2753 graphs with min-degree 3 and at most 8 vertices (this could take a while)",
         action="store_true",
+    )
+    parser.add_argument(
+        "++",
+        dest="solver_args",
+        nargs="*",
+        default=[],
+        help="arguments for the tw-solver executable",
     )
 
     args = parser.parse_args()
 
-    global tw_executable
+    global tw_executable, tw_executable_args
     tw_executable = args.twsolver
+    tw_executable_args = args.solver_args
 
     f = "./td-validate"
     if not os.path.isfile(f):
         print("File {:s} not found. Run 'make' first!\n".format(f))
-        return
+        exit(255)
 
     print("Automatically testing {:s}...\n".format(tw_executable))
 
@@ -190,14 +203,19 @@ def main():
             total_nonoptimal += 1
 
     print()
+    exit_code = 0
     if total == total_valid:
         print("Produced a valid .td on all {:d} instances.".format(total))
     else:
         print("{:d} out of {:d} tests produced a valid .td".format(total_valid, total))
+        exit_code = 2
     if total_nonoptimal == 0:
         print("All tree decompositions were optimal")
     else:
         print("{:d} tree decompositions were not optimal".format(total_nonoptimal))
+        if exit_code == 0:
+            exit_code = 1
+    exit(exit_code)
 
 
 if __name__ == "__main__":
