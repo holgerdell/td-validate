@@ -8,8 +8,9 @@ The test is run on some corner cases, and on graphs were past PACE submissions
 exhibited bugs.
 
 Optional argument:
-    --full   run test on all graphs with min-degree 3 and at most 8 vertices
-
+    ++full   run test on all graphs with min-degree 3 and at most 8 vertices
+    ++       any number of arguments that get passed on to the treewidth solver
+    
 Requires python3-networkx
 
 Copyright 2016, Holger Dell
